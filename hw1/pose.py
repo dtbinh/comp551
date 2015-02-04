@@ -168,7 +168,7 @@ def waypoint_motion():
         if rone.button_get_value('r'):
             if mode == MODE_INACTIVE:
                 poseX.set_pose(0, 0, 0)
-                waypoint_list = [(-304, 0), (-304, -304), (0, -304), (0, 0)]
+                waypoint_list = [(1000, 0), (1000, 1000), (0, 1000), (0, 0)]
                 mode = MODE_ACTIVE
             
         # check to see if you are at your waypoint.  If so, go to the next one

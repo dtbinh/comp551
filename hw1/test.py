@@ -28,6 +28,18 @@ def move_forward(time):
     rone.motor_brake('r')
     # student code end
 
+# moves backward for the argument time
+# arguments: time
+# return: nothing
+def move_backward(time):
+    # student code start
+    rone.motor_set_pwm('l',-MOTOR_PWM)
+    rone.motor_set_pwm('r',-MOTOR_PWM)
+    sys.sleep(time)
+    rone.motor_brake('l')
+    rone.motor_brake('r')
+    # student code end
+
     
 # rotate right for the argument time
 # arguments: time
@@ -51,8 +63,29 @@ def move_rotate_left(time):
     sys.sleep(time)
     rone.motor_brake('r')
     # student code end
+    
+# backwards rotate right for the argument time
+# arguments: time
+# return: nothing
+def back_rotate_right(time):
+    # student code start
+    rone.motor_set_pwm('l',-MOTOR_PWM)
+    rone.motor_brake('r')
+    sys.sleep(time)
+    rone.motor_brake('l')
+    # student code end
+    
 
-
+# backwards rotate left for the argument time
+# arguments: time
+# return: nothing
+def back_rotate_left(time):
+    # student code start
+    rone.motor_set_pwm('r',-MOTOR_PWM)
+    rone.motor_brake('l')
+    sys.sleep(time)
+    rone.motor_brake('r')
+    # student code end
     
 
 ########  part 1: square motion ########
@@ -117,7 +150,7 @@ def bump_left_get_value():
     return False
     #return ((bump_bits & 7) > 0)
 
-# Checks the bump sensor for impacts from the frontt
+# Checks the bump sensor for impacts from the front
 # arguments: nothing
 # return: True if the bump sensor is pressed from the front, False otherwise
 def bump_front_get_value():
@@ -149,14 +182,62 @@ def bump_avoid():
     while True:
         # student code start
         if bump_left_get_value():
+            left = True      
+            back_rotate_right(1000)
+        elif bump_right_get_value():
+            left = False
+            back_rotate_left(1000)
+        elif bump_front_get_value():                  
+            if left:
+                back_rotate_right(1000)
+            else:
+                back_rotate_left(1000)
+        else:
+            move_forward(500)
+                
+        # student code end
+        
+########  part 4: avoid obstacles with IR sensors ########
+
+# Use the IR sensors to detect obstacles
+# arguments: nothing
+# return: tuple of booleans (obs_front, obs_left, obs_right)
+def obstacle_detect():
+    obs_front = False
+    obs_left = False
+    obs_right = False
+    rone.ir_comms_send_message();
+    sys.sleep(20)
+    msg = rone.ir_comms_get_message()
+    if msg != None:
+        (msg, recv_list, xmit_list, range_bits) = msg
+        if (0 in recv_list) and (7 in recv_list):
+            obs_front = True
+        if (0 in recv_list) or (1 in recv_list):
+            obs_left = True
+        if (6 in recv_list) or (7 in recv_list):
+            obs_right = True
+    return (obs_front, obs_left, obs_right)
+
+
+# Move away from obstacles! Use the structure below, and the movement helper functiosn from above
+# arguments: nothing
+# return: nothing
+def obstacle_avoid():
+    sys.sleep(1000)
+    while True:
+        (obs_front, obs_left, obs_right) = obstacle_detect()
+        print obs_front, obs_left, obs_right
+        # student code start
+        if obs_left:
             print "left"
             left = True
             move_rotate_right(100)
-        elif bump_right_get_value():
+        elif obs_right:
             print "right"
             left = False
             move_rotate_left(100)
-        elif bump_front_get_value():
+        elif obs_front:
             print "face"
             if left:
                 move_rotate_right(500)
@@ -164,5 +245,4 @@ def bump_avoid():
                 move_rotate_left(500)
         else:
             move_forward(500)
-                
         # student code end
