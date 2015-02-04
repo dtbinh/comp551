@@ -4,11 +4,15 @@ import rone, sys, math, math2, leds, velocity, poseX, motionX
 ##                      Student code - hand this section in                   ##
 ################################################################################
 
+# Ryan Spring - rds4
+# Kori Macdonald - kum1
+
 #### Pose estimator ####
 WHEEL_BASE = 78
 ENCODER_MM_PER_TICKS = 0.0625
 
 #update the pose state
+# Ryan Spring - rds4 and Kori Macdonald - kum1
 def pose_update(pose_state):
     # 1. Get the left and right encoder ticks
     left = rone.encoder_get_ticks("l")
@@ -60,6 +64,7 @@ MOTION_RV_MAX = 7000
 # Convert rectangular to polar
 # return a tuple of the form (r, theta)
 # theta lies between (-pi, pi] 
+# Ryan Spring - rds4 and Kori Macdonald - kum1
 def topolar(x, y):
     # student code start
     r2 = (x*x) + (y*y)
@@ -70,6 +75,7 @@ def topolar(x, y):
 
 # compute the distance and heading to the goal position
 # return a tuple of the form: (goal_distance, goal_heading, robot_heading)
+# Ryan Spring - rds4 and Kori Macdonald - kum1
 def compute_goal_distance_and_heading(goal_position, robot_pose):
     # student code start
     (goal_distance, goal_heading) = topolar(goal_position[0] - robot_pose[0], goal_position[1] - robot_pose[1])
@@ -79,6 +85,7 @@ def compute_goal_distance_and_heading(goal_position, robot_pose):
 
 # Compute the smallest angle difference between two angles
 # This difference will lie between (-pi, pi]
+# Ryan Spring - rds4
 def smallest_angle_diff(current_angle, goal_angle):
     # student code start
     if (current_angle >= 0 and goal_angle >= 0) or (current_angle < 0 and goal_angle < 0):
@@ -91,6 +98,7 @@ def smallest_angle_diff(current_angle, goal_angle):
 
 # compute the tv profile for the velocity controller.
 # this should match the plot from the handout
+# Ryan Spring - rds4 and Kori Macdonald - kum1
 def motion_controller_tv(d, tv_max):
     # student code start
     tv_temp = MOTION_TV_GAIN * d + MOTION_TV_MIN
@@ -99,6 +107,7 @@ def motion_controller_tv(d, tv_max):
 
 # compute the rv controller for the velocity controller
 # this should bound the value to MOTION_RV_MAX
+# Ryan Spring - rds4 and Kori Macdonald - kum1
 def motion_controller_rv(heading, heading_to_goal):
     # student code start
     bearing_error = smallest_angle_diff(heading, heading_to_goal)
