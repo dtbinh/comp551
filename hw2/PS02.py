@@ -27,16 +27,10 @@ def test_radio_receive():
     # use the radio_get_message() helper function above to receive a radio message
     while True:
         # student code start
-
-
-
-
-
-
-
-
-
-
+        if radio_get_message() == None:
+            rone.led_set_group('r', 100)
+        else:
+            rone.led_set_group('b', 100)
         # student code end
         sys.sleep(REMOTE_XMIT_DELAY * 2)
 
@@ -45,19 +39,18 @@ def test_ir_receive():
     # run forever. print a IR message if you get one
     # turn on blue lights if you get a message, red lights if not
     # use the rone.led_set_group() function to turn on lights
-
     while True:
         # student code start
-
-
-
-
-
-
-
-
-
-
+        rone.ir_comms_send_message();
+        sys.sleep(20)
+        msg = rone.ir_comms_get_message()
+        if msg == None:
+            rone.led_set_group('r', 100)
+        else:
+            (msg, recv_list, xmit_list, range_bits) = msg
+            print msg
+            sys.sleep(20)
+            rone.led_set_group('b', 100)
         # student code end
         sys.sleep(NEIGHBOR_PERIOD * 2)
 
@@ -68,19 +61,23 @@ def check_buttons():
     # return a blank string if no button is pressed
     buttons = '' # placeholder code
     # student code start
-
-
-
-
-
-
+    red = rone.button_get_value('r')
+    blue = rone.button_get_value('b')
+    green = rone.button_get_value('g')
+    
+    if red:
+        buttons += 'r'
+    if blue:
+        buttons += 'b'
+    if green:
+        buttons += 'g'
     # student code end
     return buttons
 
 
 def leader_motion_controller(radio_msg):
     # args: radio_msg, a string of the radio message from the remote robot
-    # returns a tuple of (tv, rv) to make te leader drive around
+    # returns a tuple of (tv, rv) to make the leader drive around
     tv = 0 # placeholder code
     rv = 0 # placeholder code
     print 'radio msg:', radio_msg  # debugging code - comment out when this is working
