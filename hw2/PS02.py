@@ -28,10 +28,15 @@ def test_radio_receive():
     # use the radio_get_message() helper function above to receive a radio message
     while True:
         # student code start
-        if radio_get_message() == None:
-            rone.led_set_group('r', 100)
+        msg = radio_get_message()
+        sys.sleep(20)
+        if msg == None:
+            leds._led_set_group('r', 100)
+            leds._led_set_group('b', 0)
         else:
-            rone.led_set_group('b', 100)
+            print msg
+            leds._led_set_group('r', 0)
+            leds._led_set_group('b', 100)
         # student code end
         sys.sleep(REMOTE_XMIT_DELAY * 2)
 
@@ -42,16 +47,17 @@ def test_ir_receive():
     # use the rone.led_set_group() function to turn on lights
     while True:
         # student code start
-        rone.ir_comms_send_message();
-        sys.sleep(20)
         msg = rone.ir_comms_get_message()
+        sys.sleep(20)
         if msg == None:
-            rone.led_set_group('r', 100)
+            leds._led_set_group('r', 100)
+            leds._led_set_group('b', 0)
         else:
             (msg, recv_list, xmit_list, range_bits) = msg
             print msg
             sys.sleep(20)
-            rone.led_set_group('b', 100)
+            leds._led_set_group('b', 100)
+            leds._led_set_group('r', 0)
         # student code end
         sys.sleep(NEIGHBOR_PERIOD * 2)
 
@@ -97,10 +103,10 @@ def leader_motion_controller(radio_msg):
     # student code end
     return (tv, rv)
 
-eighth_pi = math.pi / 8
+eighth_pi = 1.0 / 8 * math.pi
 receiver_angle = [1, 3, 5, 7, 9, 11, 13, 15]
 
-fourth_pi = math.pi / 4
+fourth_pi = 1.0 / 4 * math.pi
 transmitter_angle = [0, 1, 2, 3, 4, 5, 6, 7]
 
 def compute_bearing(receivers_list):
@@ -111,10 +117,18 @@ def compute_bearing(receivers_list):
     # student code start
     count = 0
     sum = 0
+    print receivers_list
     for v in receivers_list:
         count += 1
         sum += receiver_angle[v] * eighth_pi
-    bearing = sum / count
+    
+    if (0 in receivers_list) and (7 in receivers_list):
+        sum = 0 
+        
+    if count > 0:
+        bearing = sum / count  
+    
+    print bearing
     
     # student code end
     print 'recv',receivers_list, bearing # debugging code - comment out when this is working
@@ -132,7 +146,13 @@ def compute_orientation(transmitters_list):
     for v in transmitters_list:
         count += 1
         sum += transmitter_angle[v] * fourth_pi
-    orientation = sum / count
+    
+    if (0 in transmitters_list) and (7 in transmitters_list):
+        sum = 0 
+    
+    if count > 0:
+        orientation = sum / count
+        
     # student code end
 
     print 'ornt',transmitters_list, orientation # debugging code - comment out when this is working
@@ -156,26 +176,27 @@ def bound(value, value_max):
     return value
 
 MOTION_RV_GAIN = 1300
-MOTION_RV_MAX = 7000
+MOTION_RV_MAX = 2000
 
 def follow_motion_controller(nbr):
     # args: nbr a neighbor to follow
     # returns a tuple of (tv, rv) to make the follower follow
     # use neighborsX.get_nbr_bearing(nbr) to get the bearing of nbr
     # (optional) you can use neighborsX.get_nbr_range_bits(nbr) to stop the 
-    # follower when it is close to the leader.  if there are more than 3 range 
+    # follower when it is close to the leader.  if there are more than 300 range 
     # bits, you should stop
     tv = 0
     rv = 0
 
     bearing = neighborsX.get_nbr_bearing(nbr)
     range_bits = neighborsX.get_nbr_range_bits(nbr)
-
-    if range_bits > 3:
+    print "range", range_bits
+    sys.sleep(20)
+    if range_bits < 300:
         tv = 0
     else:
         tv = FTL_TV
-
+        
     rv = bound(MOTION_RV_GAIN * normalize_angle(bearing), MOTION_RV_MAX)
     # student code end
 
@@ -186,7 +207,7 @@ def FTL_sorted():
     rv = 0
     nbr_list = neighborsX.get_neighbors()
     if len(nbr_list) > 0:
-        # You have neighbors. Follow max-min robot-id. if you're the lowest, become leader.
+        # You have neighbors. Follow max-min robot-id. If you're the lowest, become leader.
         follow_id = -1
         follow_nbr = None
         for nbr in nbr_list:
@@ -198,7 +219,8 @@ def FTL_sorted():
         if follow_id == -1: # leader
             leds_blink_all(LED_BRIGHTNESS)
             tv =  FTL_TV
-            rv = FTL_RV
+            rv = 0
+            #bump_avoid()
         else: # follower
             leds.set_pattern('b','blink_fast', LED_BRIGHTNESS)
             (tv, rv) = follow_motion_controller(follow_nbr)
@@ -225,7 +247,103 @@ def flock():
 ##                     PS07 Distribution code                                 ## 
 ##                 Please read.  Do not need to edit or hand in               ## 
 ################################################################################
+########  part 0: helper functions ########
+# global PWM setting for all motion
+# you might need to increase this a bit if your robot doesn't move
+MOTOR_PWM = 65
 
+def move_forward(time):
+    # student code start
+    rone.motor_set_pwm('l',MOTOR_PWM)
+    rone.motor_set_pwm('r',MOTOR_PWM)
+    sys.sleep(time)
+    rone.motor_brake('l')
+    rone.motor_brake('r')
+    # student code end
+    
+# backwards rotate right for the argument time
+# arguments: time
+# return: nothing
+# Ryan Spring - rds4 and Kori Macdonald - kum1
+def back_rotate_right(time):
+    # student code start
+    rone.motor_set_pwm('l',-MOTOR_PWM)
+    rone.motor_brake('r')
+    sys.sleep(time)
+    rone.motor_brake('l')
+    # student code end
+    
+
+# backwards rotate left for the argument time
+# arguments: time
+# return: nothing
+# Ryan Spring - rds4 and Kori Macdonald - kum1
+def back_rotate_left(time):
+    # student code start
+    rone.motor_set_pwm('r',-MOTOR_PWM)
+    rone.motor_brake('l')
+    sys.sleep(time)
+    rone.motor_brake('r')
+    # student code end
+    
+########  part 3: avoid obstacles with bump sensors ########
+# Checks the bump sensor for impacts from the left
+# arguments: nothing
+# return: True if the bump sensor is pressed from the left, False otherwise
+# Ryan Spring - rds4
+def bump_left_get_value():
+    left = [0, 1, 2]
+    bump_bits = rone.bump_sensors_get()
+    for n in left:
+        if n in bump_bits:
+            return True
+    return False
+    #return ((bump_bits & 7) > 0)
+
+# Checks the bump sensor for impacts from the front
+# arguments: nothing
+# return: True if the bump sensor is pressed from the front, False otherwise
+# Ryan Spring - rds4
+def bump_front_get_value():
+    front = [0, 7]
+    bump_bits = rone.bump_sensors_get()
+    for n in front:
+        if n in bump_bits:
+            return True
+    return False    #return (bump_bits == 129)
+
+# Checks the bump sensor for impacts from the right
+# arguments: nothing
+# return: True if the bump sensor is pressed from the right, False otherwise
+# Ryan Spring - rds4
+def bump_right_get_value():
+    right = [7, 6, 5]
+    bump_bits = rone.bump_sensors_get()
+    for n in right:
+        if n in bump_bits:
+            return True
+    return False
+
+# Move the robot away from obstacles using the bump sensors
+# arguments: nothing
+# return: nothing
+# Ryan Spring - rds4 and Kori Macdonald - kum1
+def bump_avoid():
+    left = True
+    # student code start
+    if bump_left_get_value():
+        left = True      
+        back_rotate_right(1000)
+    elif bump_right_get_value():
+        left = False
+        back_rotate_left(1000)
+    elif bump_front_get_value():                  
+        if left:
+            back_rotate_right(1000)
+        else:
+            back_rotate_left(1000)
+    else:
+        move_forward(500)
 
 def FTL_remote():
     buttons = check_buttons()
@@ -347,9 +465,6 @@ def follow_the_leader():
             flock()
 
 
-
-
-
 #test_radio_receive()
 #test_ir_receive()
-#follow_the_leader()
+follow_the_leader()
