@@ -1,6 +1,6 @@
 import rone, sys, math, velocity, leds, neighborsX
 
-FTL_TV = 100
+FTL_TV = 50
 FTL_RV = math.pi*1000/2
 LED_BRIGHTNESS = 40
 REMOTE_XMIT_DELAY = 50
@@ -14,6 +14,7 @@ MODE_LEADER = 2
 MODE_FOLLOWER = 3
 MODE_SORTED = 4
 MODE_FLOCK = 5
+MODE_ALIGN = 6
 
 def radio_get_message():
     radio_msg = rone.radio_get_message_usr_newest()
@@ -128,8 +129,6 @@ def compute_bearing(receivers_list):
     if count > 0:
         bearing = sum / count  
     
-    print bearing
-    
     # student code end
     print 'recv',receivers_list, bearing # debugging code - comment out when this is working
     return bearing
@@ -154,7 +153,6 @@ def compute_orientation(transmitters_list):
         orientation = sum / count
         
     # student code end
-
     print 'ornt',transmitters_list, orientation # debugging code - comment out when this is working
     return orientation
 
@@ -175,7 +173,7 @@ def bound(value, value_max):
         value = -value_max
     return value
 
-MOTION_RV_GAIN = 1300
+MOTION_RV_GAIN = 650
 MOTION_RV_MAX = 2000
 
 def follow_motion_controller(nbr):
@@ -199,7 +197,6 @@ def follow_motion_controller(nbr):
         
     rv = bound(MOTION_RV_GAIN * normalize_angle(bearing), MOTION_RV_MAX)
     # student code end
-
     return (tv, rv)
 
 def FTL_sorted():
@@ -217,7 +214,7 @@ def FTL_sorted():
                 follow_nbr = nbr
         
         if follow_id == -1: # leader
-            leds_blink_all(LED_BRIGHTNESS)
+            leds.set_pattern('rg','blink_fast', LED_BRIGHTNESS)
             tv =  FTL_TV
             rv = 0
             #bump_avoid()
@@ -229,18 +226,67 @@ def FTL_sorted():
         leds.set_pattern('r','circle',LED_BRIGHTNESS)
     velocity.set_tvrv(tv, rv)
     
+def neighbor_heading(nbr):
+    # finding neighbor heading
+    orientation = neighborsX.get_nbr_orientation(nbr)
+    bearing = neighborsX.get_nbr_bearing(nbr)
+    heading = bearing + math.pi - orientation
+    return normalize_angle(heading)
+    
 def match_orientation():
-    # TODO - pair-wise orientation match from high-id to low-id
-    return
+    # pair-wise orientation match from high-id to low-id
+    tv = 0
+    rv = 0
+
+    nbr_list = neighborsX.get_neighbors()
+    if len(nbr_list) > 0:
+        # You have neighbors. Follow any neighbor.  get the first neighbor
+        leds.set_pattern('rb','blink_fast', LED_BRIGHTNESS)
+        nbr = nbr_list[0]
+        rv = bound(MOTION_RV_GAIN * neighbor_heading(nbr), MOTION_RV_MAX)
+    else:
+        #no neighbors. do nothing
+        leds.set_pattern('b','circle',LED_BRIGHTNESS)
+    # student code end
+    velocity.set_tvrv(tv, rv)
 
 def average_orientation():
-    # TODO - calculate average heading of all neighbors
+    # calculate average heading of all neighbors
     # compute vector sum of orientation angles and then average
-    return
+    nbr_list = neighborsX.get_neighbors()
+    if len(nbr_list) > 0:
+        # You have neighbors
+        vector_sum = [0, 0]
+        for nbr in nbr_list:
+            nbr_heading = neighbor_heading(nbr)
+            vector_sum[0] += math.cos(nbr_heading)  
+            vector_sum[1] += math.sin(nbr_heading)
+        average_heading = math.atan2(vector_sum[1], vector_sum[0])
+        return (FTL_TV, bound(MOTION_RV_GAIN * average_heading, MOTION_RV_MAX))
+    else:
+        leds.set_pattern('r','circle',LED_BRIGHTNESS)
+    return (0, 0)
 
 def flock():
-    # TODO - have the robots follow the leader as a flock
-    return
+    # have the robots follow the leader as a flock
+    global FTL_leader_tv, FTL_leader_rv
+
+    tv = 0
+    rv = 0
+    nbr_list = neighborsX.get_neighbors()
+    if len(nbr_list) > 0:
+        leds.set_pattern('bg','blink_fast', LED_BRIGHTNESS)
+        (tv, rv) = average_orientation()
+        
+        radio_msg = radio_get_message()
+        if radio_msg != None:
+            # we have a message! put lights in active mode
+            (FTL_leader_tv, FTL_leader_rv) = leader_motion_controller(radio_msg)
+            rv += FTL_leader_rv
+    else:       
+        # no neighbors. do nothing
+        leds.set_pattern('r','circle',LED_BRIGHTNESS)
+    velocity.set_tvrv(tv, rv)
     
 
 ################################################################################
@@ -358,8 +404,6 @@ def FTL_remote():
 
 
 # These variables are used as static variables for FTL_leader
-    
-
 radio_msg_time = sys.time()
 FTL_leader_tv = 0
 FTL_leader_rv = 0
@@ -431,10 +475,13 @@ def follow_the_leader():
             
         # finally, process the button information
         buttons = check_buttons()
+        print buttons
         if 'rg' == buttons:
             mode = MODE_SORTED
-        elif 'gb' == buttons:
+        elif 'bg' == buttons:
             mode = MODE_FLOCK
+        elif 'rb' == buttons:
+            mode = MODE_ALIGN
         elif 'r' in buttons:
             mode = MODE_REMOTE
         elif 'g' in buttons:
@@ -463,6 +510,8 @@ def follow_the_leader():
             FTL_sorted()
         elif mode == MODE_FLOCK:
             flock()
+        elif mode == MODE_ALIGN:
+            match_orientation()
 
 
 #test_radio_receive()
